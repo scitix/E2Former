@@ -1,0 +1,44 @@
+# A total of 16 32GB GPUs were used for training.
+
+includes:
+  - configs/s2ef/2M/base.yml
+
+model:
+  name: escn
+  num_layers: 12
+  max_neighbors: 20
+  cutoff: 12.0
+  sphere_channels: 128
+  hidden_channels: 256
+  lmax_list: [4]
+  mmax_list: [2]
+  num_sphere_samples: 128
+  distance_function: "gaussian"
+  regress_forces: True
+  use_pbc: True
+  basis_width_scalar: 2.0
+  otf_graph: True
+
+
+optim:
+  batch_size:                   3         # 6
+  eval_batch_size:              3         # 6
+  load_balancing: atoms
+  num_workers: 8
+  lr_initial:                   0.0008    # [0.0002, 0.0004], eSCN uses 0.0008 for batch size 96
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.001
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 0.1
+    lr_min_factor: 0.03         #
+
+  max_epochs: 12
+  clip_grad_norm: 100
+  ema_decay: 0.999
+
+  eval_every: 50000

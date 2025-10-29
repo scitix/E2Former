@@ -1,0 +1,127 @@
+trainer: equiformerv2_forces
+
+dataset:
+  train:
+    format: spice_xyz
+    src: data/oc22/s2ef/train
+    transforms:
+      normalizer:
+        energy:
+          mean: 0.0
+          stdev: 1.3586250168372778
+        forces:
+          mean: 0.0
+          stdev: 1.0355770820474761
+  val:
+    src: data/oc22/s2ef/val_id
+
+logger: wandb
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+    prediction_dtype: float32
+  forces:
+    irrep_dim: 1
+    level: atom
+    train_on_free_atoms: True
+    eval_on_free_atoms: True
+    prediction_dtype: float32
+
+loss_functions:
+  - energy:
+      fn: mae
+      coefficient: 4
+  - forces:
+      fn: l2mae
+      coefficient: 100
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+    forces:
+      - mae
+      - cosine_similarity
+  primary_metric: loss
+
+model:
+  name: hydra
+  pass_through_head_outputs: True
+  otf_graph: True
+
+  backbone:
+    model: src.EScAIP.EScAIPBackbone
+
+    # Global Configs
+    activation: gelu
+    direct_force: true
+    hidden_size: 256
+    regress_forces: true
+    use_fp16_backbone: false
+
+    use_padding: false
+    # Molecular Graph Configs
+    avg_num_nodes: 30.9401
+    enforce_max_neighbors_strictly: true
+    distance_function: gaussian
+    max_neighbors: 20
+    max_num_elements: 110
+    max_num_nodes_per_batch: 100 # Average 30, Max 150, use 100 for padding
+    max_radius: 6.0
+    otf_graph: true
+    use_pbc: false
+    use_pbc_single: false
+
+
+    # Graph Neural Networks Configs
+    atom_embedding_size: 128
+    atten_name: memory_efficient
+    atten_num_heads: 16
+    edge_distance_embedding_size: 512
+    edge_distance_expansion_size: 600
+    node_direction_embedding_size: 64
+    node_direction_expansion_size: 10
+    num_layers: 6
+    output_hidden_layer_multiplier: 2
+    readout_hidden_layer_multiplier: 2
+    ffn_hidden_layer_multiplier: 2
+
+
+    # Regularization Configs
+    atten_dropout: 0.1
+    mlp_dropout: 0.05
+    normalization: rmsnorm
+    stochastic_depth_prob: 0.0
+
+  heads:
+    forces:
+      module: src.EScAIP.EScAIPDirectForceHead
+    energy:
+      module: src.EScAIP.EScAIPEnergyHead
+
+
+optim:
+  batch_size:                   48         # 6
+  eval_batch_size:              32         # 6
+  load_balancing: atoms
+  num_workers: 0
+  lr_initial:                   0.00001    # EquivormerV2 uses 0.0004 for signal gpu batch size 8
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.01
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 0.1
+    lr_min_factor: 0.5         # EquivormerV2 uses 0.01
+
+  max_epochs: 300
+  clip_grad_norm: 10
+  ema_decay: 0.999
+
+  eval_every: 10000
+  # checkpoint_evey: 50000

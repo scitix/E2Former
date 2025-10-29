@@ -1,0 +1,135 @@
+includes:
+  -  /home/hul/hul/yl2428/SFM_framework_Dec-9/EScAIP/configs/s2ef/2M/base.yml
+
+trainer: equiformerv2_forces
+
+model:
+  name: hydra
+  pass_through_head_outputs: True
+  otf_graph: True
+
+  backbone:
+    model: src.E2Former.E2FormerBackbone
+
+  # global_cfg:
+    regress_forces: true
+    direct_force: false
+    hidden_size: 384
+    batch_size: 12
+    activation: gelu
+    use_padding: true
+    use_fp16_backbone: false
+    use_compile: false
+
+  # molecular_graph_cfg:
+    use_pbc: true
+    use_pbc_single: false
+    otf_graph: true
+    max_neighbors: 20
+    max_num_elements: 90
+    max_num_nodes_per_batch: 150 # Average 73, Max 220, use 150 for padding
+    enforce_max_neighbors_strictly: false
+    distance_function: gaussian
+
+  # gnn_cfg:
+    atom_embedding_size: 128
+    node_direction_embedding_size: 64
+    node_direction_expansion_size: 64
+    edge_distance_expansion_size: 128
+    edge_distance_embedding_size: 64
+    atten_name: flash
+    atten_num_heads: 4
+    readout_hidden_layer_multiplier: 2
+    output_hidden_layer_multiplier: 2
+    ffn_hidden_layer_multiplier: 4
+    use_angle_embedding: true
+
+  # reg_cfg:
+    mlp_dropout: 0.1
+    atten_dropout: 0.1
+    stochastic_depth_prob: 0.1
+    normalization: layernorm
+
+  # psm_config:
+    encoder_embed_dim: 384
+    num_atom_features: 64
+    num_timesteps: 100
+    embedding_dim: 384
+    diffusion_time_step_encoder_type: sinusoidal
+    use_2d_bond_features: true
+    use_charge_embedding: true
+    pbc_cutoff: 12.0
+    pbc_expanded_token_cutoff: 256
+    pbc_expanded_num_cell_per_direction: 4
+    pbc_multigraph_cutoff: 12.0
+    node_type_edge_method: NON_EXCHANGABLE
+    AutoGradForce: true
+    pbc_use_local_attention: true
+    use_2d_atom_features: true
+    mlm_from_decoder_feature: true
+    num_encoder_layers: 6
+    num_attention_heads: 8
+    num_3d_bias_kernel: 128
+    num_edges: 512
+    edge_hidden_dim: 64
+    num_spatial: 10
+    multi_hop_max_dist: 510
+
+
+  # backbone_config:
+    irreps_node_embedding: "384x0e+384x1e+384x2e"
+    num_layers: 5
+    pbc_max_radius: 12
+    max_radius: 12.0
+    basis_type: gaussiansmear
+    number_of_basis: 128
+    num_attn_heads: 4
+    attn_scalar_head: 32
+    irreps_head: "32x0e+32x1e+32x2e"
+    rescale_degree: false
+    nonlinear_message: false
+    norm_layer: rms_norm_sh_BL
+    alpha_drop: 0.1
+    proj_drop: 0.0
+    out_drop: 0.0
+    drop_path_rate: 0.1
+    atom_type_cnt: 256
+    tp_type: QK_alpha
+    attn_type: second-order
+    edge_embedtype: default
+    attn_biastype: share
+    ffn_type: eqv2ffn
+    add_rope: true
+    time_embed: false
+    sparse_attn: true
+    dynamic_sparse_attn_threthod: 1000
+    force_head: null
+
+  heads:
+    forces:
+      module: src.E2Former.E2FormerDirectForceHead
+    energy:
+      module: src.E2Former.E2FormerEnergyHead
+
+optim:
+  batch_size: 12
+  eval_batch_size: 12
+  load_balancing: atoms
+  num_workers: 9
+  lr_initial: 0.0001
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.01
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 0.1
+    lr_min_factor: 0.5
+  max_epochs: 30
+  clip_grad_norm: 10
+  ema_decay: 0.999
+  eval_every: 30000
+
+slurm:
+  constraint: "volta32gb"
